@@ -1,0 +1,6 @@
+global class LoyaltyPointsCalculationScheduler implements Schedulable {
+    global void execute(SchedulableContext sc) {
+        LoyaltyPointsCalculationBatch batch = new LoyaltyPointsCalculationBatch();
+        Database.executeBatch(batch, 200);
+    }
+}

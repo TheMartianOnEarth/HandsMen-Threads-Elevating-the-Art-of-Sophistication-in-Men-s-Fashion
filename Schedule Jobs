@@ -1,0 +1,6 @@
+//Loyalty Points Calculation - Every Sunday 12 AM
+String cron = '0 0 0 ? * SUN'; 
+System.schedule('Weekly Loyalty Points Update', cron, new LoyaltyPointsCalculationScheduler());
+
+//Inventory Sync - Daily at 2 AM
+System.schedule(‘Daily Inventory Sync’ , ‘0 0 2 * * ?’ , new InventoryBatchJob());

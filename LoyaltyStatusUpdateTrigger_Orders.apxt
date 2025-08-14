@@ -1,0 +1,49 @@
+trigger LoyaltyStatusUpdateTrigger_Orders on HandsMen_Order__c (after insert, after update) {
+    Set<Id> customerIds = new Set<Id>();
+
+    // Collect customer IDs from affected orders
+    for (HandsMen_Order__c ord : Trigger.new) {
+        if (ord.Customer__c != null) {
+            customerIds.add(ord.Customer__c);
+        }
+    }
+
+    if (!customerIds.isEmpty()) {
+        // Aggregate total purchases for each customer
+        Map<Id, Decimal> customerTotals = new Map<Id, Decimal>();
+
+        for (AggregateResult ar : [
+            SELECT Customer__c, SUM(Total_Amount__c) totalSpent
+            FROM HandsMen_Order__c
+            WHERE Customer__c IN :customerIds
+            GROUP BY Customer__c
+        ]) {
+            customerTotals.put((Id) ar.get('Customer__c'), (Decimal) ar.get('totalSpent'));
+        }
+
+        // Prepare updates for customers
+        List<HandsMen_Customer__c> updates = new List<HandsMen_Customer__c>();
+
+        for (Id custId : customerTotals.keySet()) {
+            Decimal totalSpent = customerTotals.get(custId);
+            String newStatus;
+
+            if (totalSpent > 1000) {
+                newStatus = 'Gold';
+            } else if (totalSpent > 500 && totalSpent < 1000) {
+                newStatus = 'Bronze';
+            } else {
+                newStatus = 'Silver';
+            }
+
+            updates.add(new HandsMen_Customer__c(
+                Id = custId,
+                Loyalty_Status__c = newStatus
+            ));
+        }
+
+        if (!updates.isEmpty()) {
+            update updates;
+        }
+    }
+}

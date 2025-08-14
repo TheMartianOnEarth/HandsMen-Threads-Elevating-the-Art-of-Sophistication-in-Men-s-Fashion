@@ -1,0 +1,21 @@
+global class LoyaltyPointsCalculationBatch implements Database.Batchable<SObject> {
+
+    global Database.QueryLocator start(Database.BatchableContext BC) {
+        return Database.getQueryLocator([
+            SELECT Id, Total_Purchases__c, Loyalty_Points__c
+            FROM HandsMen_Customer__c
+        ]);
+    }
+
+    global void execute(Database.BatchableContext BC, List<HandsMen_Customer__c> scope) {
+        for (HandsMen_Customer__c cust : scope) {
+            Decimal totalPurchases = cust.Total_Purchases__c != null ? cust.Total_Purchases__c : 0;
+            cust.Loyalty_Points__c = totalPurchases * 2;
+        }
+        update scope;
+    }
+
+    global void finish(Database.BatchableContext BC) {
+        // Optional: send summary email or log results
+    }
+}

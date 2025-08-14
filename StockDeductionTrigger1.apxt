@@ -1,0 +1,39 @@
+trigger StockDeductionTrigger1 on HandsMen_Order__c (after insert) {
+    // Collect product IDs from orders
+    Set<Id> productIds = new Set<Id>();
+    for (HandsMen_Order__c ord : Trigger.new) {
+        if (ord.Product__c != null && ord.Quantity__c != null) {
+            productIds.add(ord.Product__c);
+        }
+    }
+
+    if (!productIds.isEmpty()) {
+        // Get related inventory records for these products
+        Map<Id, Inventory__c> invMap = new Map<Id, Inventory__c>(
+            [SELECT Id, Product__c, Stock_Quantity__c
+             FROM Inventory__c
+             WHERE Product__c IN :productIds]
+        );
+
+        List<Inventory__c> updates = new List<Inventory__c>();
+
+        for (HandsMen_Order__c ord : Trigger.new) {
+            if (ord.Product__c != null && ord.Quantity__c != null) {
+                Inventory__c inv = invMap.get(ord.Product__c);
+                if (inv != null) {
+                    Decimal newStock = inv.Stock_Quantity__c - ord.Quantity__c;
+                    if (newStock < 0) {
+                        ord.addError('Not enough stock available for this product.');
+                    } else {
+                        inv.Stock_Quantity__c = newStock;
+                        updates.add(inv);
+                    }
+                }
+            }
+        }
+
+        if (!updates.isEmpty()) {
+            update updates;
+        }
+    }
+}
