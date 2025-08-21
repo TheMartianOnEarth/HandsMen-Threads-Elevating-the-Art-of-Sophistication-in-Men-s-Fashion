@@ -1,6 +1,30 @@
 public class OrderTriggerHandler {
-    public static void validateOrderQuantity(List<HandsMen_Order__c> orderList) {
+
+    public static void validateAndUpdateOrder(List<HandsMen_Order__c> orderList) {
+        // Collect Product Ids from orders
+        Set<Id> productIds = new Set<Id>();
         for (HandsMen_Order__c order : orderList) {
+            if (order.Product__c != null) {
+                productIds.add(order.Product__c);
+            }
+        }
+
+        // Query Products with their Price
+        Map<Id, HandsMen_Product__c> productMap = new Map<Id, HandsMen_Product__c>(
+            [SELECT Id, Price__c FROM HandsMen_Product__c WHERE Id IN :productIds]
+        );
+
+        // Loop orders and apply rules
+        for (HandsMen_Order__c order : orderList) {
+            // Auto-update Total Amount (Quantity * Product Price)
+            if (order.Product__c != null && order.Quantity__c != null) {
+                HandsMen_Product__c prod = productMap.get(order.Product__c);
+                if (prod != null && prod.Price__c != null) {
+                    order.Total_Amount__c = order.Quantity__c * prod.Price__c;
+                }
+            }
+
+            // Business Rule Validations
             if (order.Status__c == 'Confirmed') {
                 if (order.Quantity__c == null || order.Quantity__c <= 500) {
                     order.Quantity__c.addError('For Status "Confirmed", Quantity must be more than 500.');
@@ -13,9 +37,10 @@ public class OrderTriggerHandler {
                 if (order.Quantity__c == null || order.Quantity__c != 0) {
                     order.Quantity__c.addError('For Status "Rejection", Quantity must be 0.');
                 }
+                order.Total_Amount__c = 0;
             }
         }
 
-        System.debug('All records validated successfully.');
+        System.debug('All records validated and Total_Amount__c updated successfully.');
     }
 }
